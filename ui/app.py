@@ -4,9 +4,10 @@ import torch
 from pathlib import Path
 from PIL import Image
 import numpy as np
+from io import BytesIO
 
 from src.models import Generator
-from src.utils import load_image, tensor_to_image
+from src.utils import tensor_to_image
 
 st.set_page_config(page_title="SeasonsGAN", layout="wide", initial_sidebar_state="expanded")
 
@@ -32,25 +33,37 @@ model_mapping = {
 }
 model_name = model_mapping[direction]
 
-# Load model
 @st.cache_resource
 def load_generator_model(name):
-    checkpoint_path = Path("SeasonsGAN/checkpoints") / f"{name}.pth"
-    
+    # Prefer mounted saved_models (mapped via Docker). Fallback to SeasonsGAN/checkpoints.
+    saved_dir = Path("saved_models")
+    checkpoint_path = saved_dir / f"{name}.pth"
+
+    if not checkpoint_path.exists():
+        checkpoint_path = Path("SeasonsGAN/checkpoints") / f"{name}.pth"
+
     if not checkpoint_path.exists():
         st.warning(f"⚠️ Model checkpoint not found at {checkpoint_path}")
         st.info(
-            "Please ensure the model weights are saved to `SeasonsGAN/checkpoints/` "
+            "Please ensure the model weights are saved to `saved_models/` or `SeasonsGAN/checkpoints/` "
             "after training completes on Colab."
         )
         return None
-    
+
     gen = Generator(input_nc=3, output_nc=3, ngf=64, n_residual_blocks=9)
     checkpoint = torch.load(checkpoint_path, map_location=device)
     gen.load_state_dict(checkpoint)
     gen.to(device)
     gen.eval()
     return gen
+
+
+def pil_to_tensor(pil_image, size=256):
+    """Convert PIL image to float tensor normalized to [-1,1]."""
+    img = pil_image.resize((size, size), Image.Resampling.LANCZOS)
+    arr = np.array(img).astype(np.float32) / 127.5 - 1.0
+    tensor = torch.from_numpy(arr).permute(2, 0, 1).unsqueeze(0)
+    return tensor
 
 
 # File upload
@@ -80,23 +93,25 @@ if uploaded_file is not None:
         if gen is not None:
             # Show loading spinner
             with st.spinner("Transforming image..."):
-                # Prepare input
-                input_tensor = load_image(uploaded_file.name, size=256)
-                
+                # Prepare input from uploaded PIL image
+                input_tensor = pil_to_tensor(input_image, size=256)
+
                 # Inference
                 with torch.no_grad():
                     input_tensor = input_tensor.to(device)
                     output_tensor = gen(input_tensor)
-                
+
                 # Convert to PIL
                 output_image = tensor_to_image(output_tensor)
                 st.image(output_image, use_column_width=True)
-                
-                # Download button
-                output_bytes = np.array(output_image)
+
+                # Download button: write image to bytes
+                buf = BytesIO()
+                output_image.save(buf, format="PNG")
+                buf.seek(0)
                 st.download_button(
                     label="📥 Download Result",
-                    data=Image.fromarray(output_bytes).tobytes(),
+                    data=buf.getvalue(),
                     file_name="transformed.png",
                     mime="image/png"
                 )

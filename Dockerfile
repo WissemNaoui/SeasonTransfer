@@ -1,23 +1,37 @@
 FROM python:3.10-slim
 
+# Create non-root user and working directory
+RUN useradd -m appuser
 WORKDIR /app
+USER appuser
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    libsm6 libxext6 libxrender-dev \
+# Install system deps required for image processing
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY requirements.txt .
+USER appuser
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy minimal Python requirements file
+COPY --chown=appuser:appuser requirements_mlops.txt ./requirements_mlops.txt
 
-# Copy source code
-COPY . .
+# Install CPU-only PyTorch first (keeps image small)
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir -r requirements_mlops.txt
 
-# Expose port
-EXPOSE 8000
+# Copy only the app code we need
+COPY --chown=appuser:appuser ui/ ./ui
+COPY --chown=appuser:appuser api/ ./api
+COPY --chown=appuser:appuser src/ ./src
 
-# Default command: run FastAPI
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Create model folder (to be volume-mounted)
+RUN mkdir -p /app/saved_models
+
+# Expose Streamlit port
+EXPOSE 8501
+
+# Run Streamlit UI
+CMD ["streamlit", "run", "ui/app.py", "--server.address=0.0.0.0", "--server.port=8501"]

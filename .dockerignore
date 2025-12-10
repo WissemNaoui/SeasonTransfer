@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.pyo
+.git
+saved_models/
+SeasonsGAN/checkpoints/
+*.ipynb
+*.log
+venv/
