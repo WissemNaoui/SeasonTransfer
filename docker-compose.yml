@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./SeasonsGAN/checkpoints:/app/SeasonsGAN/checkpoints
+      - ./data:/app/data
+    environment:
+      - DEVICE=cuda
+    # Uncomment the line below if you have GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  ui:
+    image: python:3.10-slim
+    working_dir: /app
+    command: >
+      sh -c "pip install streamlit torch pillow numpy &&
+             streamlit run ui/app.py --server.port=8501"
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+    depends_on:
+      - api
+    environment:
+      - STREAMLIT_SERVER_HEADLESS=true
