@@ -21,8 +21,9 @@ COPY --chown=appuser:appuser requirements_mlops.txt ./requirements_mlops.txt
 
 # Upgrade pip and install build helpers, then install CPU-only PyTorch
 RUN pip install --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir flit_core
-RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+# Install CPU-only PyTorch using --extra-index-url so pip can still fetch build deps from PyPI
+RUN pip install --no-cache-dir torch torchvision --extra-index-url https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir -r requirements_mlops.txt
 
 # Copy only the app code we need
