@@ -35,18 +35,20 @@ model_name = model_mapping[direction]
 
 @st.cache_resource
 def load_generator_model(name):
-    # Prefer mounted saved_models (mapped via Docker). Fallback to SeasonsGAN/checkpoints.
-    saved_dir = Path("saved_models")
-    checkpoint_path = saved_dir / f"{name}.pth"
+    # --- Define Paths Correctly for Docker ---
+    # Force loading from the mounted `saved_models/` folder inside the container.
+    if name == "gen_winter":
+        checkpoint_path = Path("saved_models") / "gen_winter.pth"
+    else:
+        checkpoint_path = Path("saved_models") / "gen_summer.pth"
 
-    if not checkpoint_path.exists():
-        checkpoint_path = Path("SeasonsGAN/checkpoints") / f"{name}.pth"
+    # Debug log — appears in docker logs
+    print(f"Loading model from: {checkpoint_path}")
 
     if not checkpoint_path.exists():
         st.warning(f"⚠️ Model checkpoint not found at {checkpoint_path}")
         st.info(
-            "Please ensure the model weights are saved to `saved_models/` or `SeasonsGAN/checkpoints/` "
-            "after training completes on Colab."
+            "Please ensure the model weights are saved to `saved_models/` inside the container."
         )
         return None
 
@@ -83,7 +85,7 @@ if uploaded_file is not None:
     
     with col1:
         st.subheader("Input Image")
-        st.image(input_image, caption="Input", use_column_width="always")
+        st.image(input_image, caption="Input Image", use_column_width="always")
     
     # Load model and perform inference
     with col2:
@@ -104,7 +106,7 @@ if uploaded_file is not None:
 
                 # Convert to PIL
                 output_image = tensor_to_image(output_tensor)
-                st.image(output_image, caption="Output", use_column_width="always")
+                st.image(output_image, caption="Output Image", use_column_width="always")
 
                 # Download button: write image to bytes
                 buf = BytesIO()
