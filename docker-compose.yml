@@ -9,6 +9,9 @@ services:
     volumes:
       # Map the local saved_models directory to the container
       - ./saved_models:/app/saved_models
+      # Bind-mount source for live code edits (no rebuild required for Python code changes)
+      - ./src:/app/src
+      - ./ui:/app/ui
     environment:
       - ENV=production
     restart: unless-stopped

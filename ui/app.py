@@ -50,7 +50,8 @@ def load_generator_model(name):
         )
         return None
 
-    gen = Generator(input_nc=3, output_nc=3, ngf=64, n_residual_blocks=9)
+    # Match the training constructor signature
+    gen = Generator(img_channels=3, num_residuals=9)
     checkpoint = torch.load(checkpoint_path, map_location=device)
     gen.load_state_dict(checkpoint)
     gen.to(device)
@@ -82,7 +83,7 @@ if uploaded_file is not None:
     
     with col1:
         st.subheader("Input Image")
-        st.image(input_image, use_column_width=True)
+        st.image(input_image, caption="Input", use_column_width="always")
     
     # Load model and perform inference
     with col2:
@@ -103,7 +104,7 @@ if uploaded_file is not None:
 
                 # Convert to PIL
                 output_image = tensor_to_image(output_tensor)
-                st.image(output_image, use_column_width=True)
+                st.image(output_image, caption="Output", use_column_width="always")
 
                 # Download button: write image to bytes
                 buf = BytesIO()
